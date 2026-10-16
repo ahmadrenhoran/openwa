@@ -1,5 +1,5 @@
 # OpenWA — compose ringan untuk satu VPS (dipasang oleh deploy/vps/deploy.sh ke /opt/openwa).
-# Satu container saja: SQLite, tanpa Postgres/Redis/MinIO, image jadi dari GHCR (tidak build di VPS).
+# OpenWA (SQLite, image jadi dari GHCR, tidak build di VPS) + Caddy untuk HTTPS di depannya.
 # Konfigurasi ada di /opt/openwa/.env; data (DB, sesi WhatsApp, media) di /opt/openwa/data.
 services:
   openwa:
@@ -14,7 +14,8 @@ services:
       XDG_CONFIG_HOME: /tmp/.config
       XDG_CACHE_HOME: /tmp/.cache
     ports:
-      - '${API_PORT:-2785}:2785'
+      # Hanya bisa diakses dari VPS itu sendiri (atau SSH tunnel); dari internet lewat Caddy (HTTPS).
+      - '127.0.0.1:2785:2785'
     volumes:
       - ./data:/app/data
     security_opt:
@@ -32,8 +33,26 @@ services:
     tmpfs:
       - /tmp
     mem_limit: ${OPENWA_MEM_LIMIT:-1g}
-    logging: # batasi log biar disk VPS tidak penuh
+    logging: &logging # batasi log biar disk VPS tidak penuh
       driver: json-file
       options:
         max-size: 10m
         max-file: '3'
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: openwa-caddy
+    restart: unless-stopped
+    depends_on:
+      - openwa
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?PUBLIC_HOST belum diisi di .env}
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy:/data # sertifikat; jangan dihapus (Let's Encrypt membatasi penerbitan ulang)
+    mem_limit: 128m
+    logging: *logging

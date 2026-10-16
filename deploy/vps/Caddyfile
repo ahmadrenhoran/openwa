@@ -1,0 +1,14 @@
+{
+	# Let's Encrypt hanya menerbitkan sertifikat untuk alamat IP lewat profil "shortlived" (6 hari);
+	# Caddy memperpanjangnya otomatis.
+	cert_issuer acme {
+		profile shortlived
+	}
+	# Browser tidak mengirim SNI saat membuka https://<IP>, jadi tentukan sertifikat default-nya.
+	default_sni {$PUBLIC_HOST}
+}
+
+https://{$PUBLIC_HOST} {
+	encode
+	reverse_proxy openwa:2785
+}
