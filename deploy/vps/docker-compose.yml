@@ -1,0 +1,39 @@
+# OpenWA — compose ringan untuk satu VPS (dipasang oleh deploy/vps/deploy.sh ke /opt/openwa).
+# Satu container saja: SQLite, tanpa Postgres/Redis/MinIO, image jadi dari GHCR (tidak build di VPS).
+# Konfigurasi ada di /opt/openwa/.env; data (DB, sesi WhatsApp, media) di /opt/openwa/data.
+services:
+  openwa:
+    image: ${OPENWA_IMAGE:-ghcr.io/rmyndharis/openwa:latest}
+    container_name: openwa
+    restart: unless-stopped
+    stop_grace_period: 75s
+    env_file: .env
+    environment:
+      PORT: 2785
+      HOME: /tmp
+      XDG_CONFIG_HOME: /tmp/.config
+      XDG_CACHE_HOME: /tmp/.cache
+    ports:
+      - '${API_PORT:-2785}:2785'
+    volumes:
+      - ./data:/app/data
+    security_opt:
+      - 'no-new-privileges:true'
+    cap_drop:
+      - ALL
+    cap_add: # yang dibutuhkan entrypoint untuk chown data lalu turun ke user openwa
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - KILL
+      - SETGID
+      - SETUID
+    read_only: true
+    tmpfs:
+      - /tmp
+    mem_limit: ${OPENWA_MEM_LIMIT:-1g}
+    logging: # batasi log biar disk VPS tidak penuh
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
