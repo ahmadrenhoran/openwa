@@ -2316,6 +2316,8 @@ describe('every workflow holds the token at contents: read for the jobs that nam
   const HELD: Record<string, string> = { contents: 'read' };
   const NAMED = [
     'ci.yml',
+    // Fork-only: manual deploy to the Fivebyte VPS (workflow_dispatch, contents: read).
+    'deploy-vps.yml',
     'java-sdk-release.yml',
     'js-sdk-release.yml',
     'php-sdk-release.yml',
