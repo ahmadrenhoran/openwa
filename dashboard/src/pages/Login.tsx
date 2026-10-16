@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Eye, EyeOff, Languages } from 'lucide-react';
+import { CheckCheck, Eye, EyeOff, KeyRound, Languages, Smartphone } from 'lucide-react';
 import { GithubIcon } from '../components/GithubIcon';
 import { CustomSelect } from '../components/CustomSelect';
 import { languageOptions, resolveSupportedLanguage, type SupportedLanguage } from '../i18n';
 import { API_BASE_URL } from '../services/api';
+import { BRAND, brandCopy } from '../branding';
 import './Login.css';
+
+const POINT_ICONS = [Smartphone, CheckCheck, KeyRound];
 
 interface LoginProps {
   onLogin: (apiKey: string, role?: string, engineType?: string, scoped?: boolean) => void;
@@ -18,6 +21,7 @@ export function Login({ onLogin }: LoginProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const currentLang = resolveSupportedLanguage(i18n.resolvedLanguage || i18n.language);
+  const brand = brandCopy(currentLang);
 
   const changeLanguage = (language: SupportedLanguage) => {
     void i18n.changeLanguage(language);
@@ -69,9 +73,105 @@ export function Login({ onLogin }: LoginProps) {
 
   return (
     <div className="login-container">
-      <div className="login-card">
-        <div className="login-logo">
-          <img src="/openwa_logo.webp" alt="OpenWA" className="logo-icon" />
+      <aside className="login-brand">
+        <span className="brand-pixels" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+          <i />
+        </span>
+        <div className="brand-lockup">
+          <span className="brand-mark">
+            <img src={BRAND.logo} alt="" />
+          </span>
+          <span className="brand-name">
+            <strong>{BRAND.name}</strong>
+            <span>{BRAND.product}</span>
+          </span>
+        </div>
+
+        <div className="brand-body">
+          <p className="brand-headline">{brand.headline}</p>
+          <ul className="brand-points">
+            {brand.points.map((point, index) => {
+              const Icon = POINT_ICONS[index];
+              return (
+                <li key={point}>
+                  <span className="brand-point-icon" aria-hidden="true">
+                    <Icon size={16} />
+                  </span>
+                  {point}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+
+        <footer className="brand-foot">
+          <span>{brand.poweredBy}</span>
+          <a
+            href={BRAND.upstreamUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="github-link"
+            aria-label="GitHub"
+          >
+            <GithubIcon size={16} />
+          </a>
+        </footer>
+      </aside>
+
+      <main className="login-panel">
+        <div className="login-card">
+          <h1 className="login-title">{brand.title}</h1>
+          <p className="login-subtitle">{brand.subtitle}</p>
+
+          <div className="login-language">
+            <Languages size={18} />
+            <CustomSelect
+              value={currentLang}
+              onChange={value => changeLanguage(value as SupportedLanguage)}
+              options={languageOptions.map(opt => ({ value: opt.value, label: opt.label }))}
+              ariaLabel={t('common.language')}
+            />
+          </div>
+
+          <form onSubmit={handleSubmit} className="login-form">
+            <div className="input-group">
+              <label htmlFor="apiKey">{t('login.apiKey')}</label>
+              <div className="input-wrapper">
+                <input
+                  id="apiKey"
+                  type={showKey ? 'text' : 'password'}
+                  value={apiKey}
+                  onChange={e => setApiKey(e.target.value)}
+                  placeholder={t('login.apiKeyPlaceholder')}
+                  className={error ? 'error' : ''}
+                />
+                <button
+                  type="button"
+                  className="toggle-visibility"
+                  onClick={() => setShowKey(!showKey)}
+                  aria-label={showKey ? t('common.hideApiKey') : t('common.showApiKey')}
+                >
+                  {showKey ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+              {error && <span className="error-message">{error}</span>}
+            </div>
+
+            <button type="submit" className="connect-btn" disabled={isLoading}>
+              {isLoading ? t('login.connecting') : t('login.connect')}
+            </button>
+          </form>
+
+          <p className="login-help">
+            {t('login.help')}{' '}
+            <a href="https://docs.open-wa.org" target="_blank" rel="noopener noreferrer">
+              {t('login.viewDocs')}
+            </a>
+          </p>
+
           <span className="version-info">
             {t('login.version', {
               version: __APP_VERSION__,
@@ -81,66 +181,7 @@ export function Login({ onLogin }: LoginProps) {
             })}
           </span>
         </div>
-
-        <div className="login-language">
-          <Languages size={18} />
-          <CustomSelect
-            value={currentLang}
-            onChange={value => changeLanguage(value as SupportedLanguage)}
-            options={languageOptions.map(opt => ({ value: opt.value, label: opt.label }))}
-            ariaLabel={t('common.language')}
-          />
-        </div>
-
-        <form onSubmit={handleSubmit} className="login-form">
-          <div className="input-group">
-            <label htmlFor="apiKey">{t('login.apiKey')}</label>
-            <div className="input-wrapper">
-              <input
-                id="apiKey"
-                type={showKey ? 'text' : 'password'}
-                value={apiKey}
-                onChange={e => setApiKey(e.target.value)}
-                placeholder={t('login.apiKeyPlaceholder')}
-                className={error ? 'error' : ''}
-              />
-              <button
-                type="button"
-                className="toggle-visibility"
-                onClick={() => setShowKey(!showKey)}
-                aria-label={showKey ? t('common.hideApiKey') : t('common.showApiKey')}
-              >
-                {showKey ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
-            </div>
-            {error && <span className="error-message">{error}</span>}
-          </div>
-
-          <button type="submit" className="connect-btn" disabled={isLoading}>
-            {isLoading ? t('login.connecting') : t('login.connect')}
-          </button>
-        </form>
-
-        <p className="login-help">
-          {t('login.help')}{' '}
-          <a href="https://docs.open-wa.org" target="_blank" rel="noopener noreferrer">
-            {t('login.viewDocs')}
-          </a>
-        </p>
-      </div>
-
-      <footer className="login-footer">
-        <span>{t('login.footer')}</span>
-        <a
-          href="https://github.com/rmyndharis/OpenWA"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="github-link"
-          aria-label="GitHub"
-        >
-          <GithubIcon size={18} />
-        </a>
-      </footer>
+      </main>
     </div>
   );
 }
