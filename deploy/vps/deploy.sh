@@ -11,7 +11,9 @@
 # Opsional lewat env:
 #   IMAGE=ghcr.io/ahmadrenhoran/openwa:main   image lain (default: image resmi OpenWA)
 #   ENGINE=whatsapp-web.js                    engine untuk instalasi pertama (default: baileys)
+#   API_KEY=...                               API key admin awal, min. 32 karakter (default: acak)
 #   SSH_PORT=22
+# Dari GitHub Actions: lihat .github/workflows/deploy-vps.yml.
 set -euo pipefail
 
 HOST="${1:?Pakai: $0 <ip-vps> [user]}"
@@ -19,9 +21,21 @@ USER_NAME="${2:-root}"
 TARGET="$USER_NAME@$HOST"
 IMAGE="${IMAGE:-ghcr.io/rmyndharis/openwa:latest}"
 ENGINE="${ENGINE:-baileys}"
+API_KEY="${API_KEY:-}"
 SSH_PORT="${SSH_PORT:-22}"
 DIR="$(cd "$(dirname "$0")" && pwd)"
 KEY="$HOME/.ssh/openwa_vps"
+
+# Nilai-nilai ini disisipkan ke perintah remote di dalam tanda kutip, jadi batasi karakternya.
+[[ "$IMAGE" =~ ^[A-Za-z0-9./:@_-]+$ ]] || { echo "IMAGE tidak valid: $IMAGE" >&2; exit 1; }
+[[ "$ENGINE" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "ENGINE tidak valid: $ENGINE" >&2; exit 1; }
+if [ -n "$API_KEY" ] && ! [[ "$API_KEY" =~ ^[A-Za-z0-9_-]{32,}$ ]]; then
+  echo "API_KEY minimal 32 karakter, hanya huruf/angka/_/-." >&2
+  exit 1
+fi
+# Log GitHub Actions bisa dibaca publik; jangan cetak API key di sana.
+SHOW_API_KEY=1
+if [ "${GITHUB_ACTIONS:-}" = true ]; then SHOW_API_KEY=0; fi
 
 if [ ! -f "$KEY" ]; then
   echo "==> Buat SSH key khusus VPS: $KEY"
@@ -55,7 +69,8 @@ done
 SUDO=""
 [ "$USER_NAME" = root ] || SUDO="sudo"
 "${SSH[@]}" -t "$TARGET" "$SUDO env IMAGE='$IMAGE' ENGINE='$ENGINE' PUBLIC_HOST='$HOST' SSH_PORT='$SSH_PORT' \
-  HARDEN_SSH='$HARDEN_SSH' bash /tmp/openwa-deploy/remote.sh; rc=\$?; rm -rf /tmp/openwa-deploy; exit \$rc"
+  HARDEN_SSH='$HARDEN_SSH' API_KEY='$API_KEY' SHOW_API_KEY='$SHOW_API_KEY' \
+  bash /tmp/openwa-deploy/remote.sh; rc=\$?; rm -rf /tmp/openwa-deploy; exit \$rc"
 
 # Cek dari luar: server seharusnya tidak lagi menawarkan login password.
 methods=$("${BASE[@]}" -o ControlPath=none -o BatchMode=yes -o PubkeyAuthentication=no "$TARGET" true 2>&1 || true)

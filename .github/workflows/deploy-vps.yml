@@ -1,0 +1,58 @@
+name: Deploy VPS
+
+# Deploy OpenWA ke VPS lewat deploy/vps/deploy.sh. Jalankan manual: tab Actions → Deploy VPS → Run workflow.
+# Secrets (Settings → Secrets and variables → Actions):
+#   VPS_HOST        IP VPS
+#   VPS_SSH_KEY     isi private key ~/.ssh/openwa_vps
+#   VPS_PASSWORD    password root; hanya terpakai di deploy pertama (setelah itu login password dimatikan)
+#   OPENWA_API_KEY  API key admin awal, min. 32 karakter (opsional; kosong = dibuat acak di VPS)
+# Repo ini publik: nilai secret otomatis disensor jadi *** di log, dan API key tidak pernah dicetak.
+
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: Image OpenWA
+        required: true
+        default: ghcr.io/rmyndharis/openwa:latest
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Deploy ke VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
+          API_KEY: ${{ secrets.OPENWA_API_KEY }}
+          IMAGE: ${{ inputs.image }}
+        run: |
+          if [ -z "$VPS_HOST" ] || [ -z "$VPS_SSH_KEY" ]; then
+            echo "::error::Secret VPS_HOST dan VPS_SSH_KEY wajib diisi."
+            exit 1
+          fi
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" | tr -d '\r' > ~/.ssh/openwa_vps
+          chmod 600 ~/.ssh/openwa_vps
+          ssh-keygen -y -f ~/.ssh/openwa_vps > ~/.ssh/openwa_vps.pub
+          # Password hanya ditanyakan ssh kalau VPS belum mengenal key-nya (deploy pertama).
+          cat > "$RUNNER_TEMP/askpass" <<'EOF'
+          #!/bin/sh
+          printf '%s\n' "$VPS_PASSWORD"
+          EOF
+          chmod 700 "$RUNNER_TEMP/askpass"
+          SSH_ASKPASS="$RUNNER_TEMP/askpass" SSH_ASKPASS_REQUIRE=force ./deploy/vps/deploy.sh "$VPS_HOST"

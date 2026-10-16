@@ -81,7 +81,7 @@ install -m 644 "$SRC/docker-compose.yml" "$APP_DIR/"
 cat "$SRC/Caddyfile" > "$APP_DIR/Caddyfile"
 
 if [ ! -f "$APP_DIR/.env" ]; then
-  key=$(od -An -tx1 -N24 /dev/urandom | tr -d ' \n')
+  key="${API_KEY:-$(od -An -tx1 -N24 /dev/urandom | tr -d ' \n')}"
   cat > "$APP_DIR/.env" <<EOF
 # OpenWA — ubah sesuai kebutuhan lalu: cd $APP_DIR && docker compose up -d
 OPENWA_IMAGE=$IMAGE
@@ -134,5 +134,9 @@ if [ "$ready" != 1 ]; then
   exit 1
 fi
 
-printf '\nOpenWA jalan.\n  Dashboard     : https://%s\n  API key awal  : %s\n\n' \
-  "$PUBLIC_HOST" "$(grep '^API_MASTER_KEY=' .env | cut -d= -f2-)"
+printf '\nOpenWA jalan.\n  Dashboard     : https://%s\n' "$PUBLIC_HOST"
+if [ "${SHOW_API_KEY:-1}" = 1 ]; then
+  printf '  API key awal  : %s\n\n' "$(grep '^API_MASTER_KEY=' .env | cut -d= -f2-)"
+else
+  printf '  API key awal  : (tidak dicetak) secret OPENWA_API_KEY, atau baca API_MASTER_KEY di %s/.env\n\n' "$APP_DIR"
+fi
